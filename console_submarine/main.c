@@ -39,7 +39,7 @@ void generate_ships() {
     for (int i = 0; i < 10; i++)
     {
         printf("ship id:%d\n", ships[i].id);
-        printf("ship health:%d\n", ships[i].health);
+        printf("ship health:%d\n", ships[i].max_health);
         printf("ship 1st cell: %d,%d\n", ships[i].coords[0][0], ships[i].coords[0][1]);
         printf("ship 2st cell: %d,%d\n", ships[i].coords[1][0], ships[i].coords[1][1]);
         printf("ship 3st cell: %d,%d\n", ships[i].coords[2][0], ships[i].coords[2][1]);

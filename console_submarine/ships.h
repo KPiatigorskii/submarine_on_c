@@ -8,11 +8,38 @@ int ship_counter = 0;
 struct Ship
 {
     int coords[4][2];
+    int around_coords[18][2];
     int id;
-    int health;
+    int max_health;
+    int current_health;
+    int around_size;
 };
 
 struct Ship ships[10];
+
+void decrease_health(int x, int y)
+{
+    for (int i = 0; i < 10; i++)
+    {
+        for (int j = 0; j < 5; j++)
+        {
+            if (ships[i].coords[j][0] == x && ships[i].coords[j][1] == y)
+                ships[i].current_health = ships[i].current_health - 1;
+        }
+    }
+}
+
+int check_health()
+{
+    for (int i = 0; i < 10; i++)
+    {
+        if (ships[i].current_health == 0)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
 
 int* get_coords(int x, int y, int deck_count, int direction) {
     int arr[2];
@@ -115,7 +142,7 @@ int check_cells(int area[12][12], int start_x, int start_y, int stop_x, int stop
     return 0;
 }
 
-void create_ship(int start_x, int start_y, int stop_x, int stop_y, int adders[2], int ship_counter)
+void create_ship(int area[12][12], int start_x, int start_y, int stop_x, int stop_y, int adders[2], int ship_counter)
 {
     int add_x = adders[0];
     int add_y = adders[1];
@@ -123,13 +150,32 @@ void create_ship(int start_x, int start_y, int stop_x, int stop_y, int adders[2]
     ships[ship_counter].id = ship_counter;
     for (int i = start_y; i != stop_y + add_y; i = i + add_y) {
         for (int j = start_x; j != stop_x + add_x; j = j + add_x) {
-            
+
             ships[ship_counter].coords[cell_counter][0] = i;
             ships[ship_counter].coords[cell_counter][1] = j;
             cell_counter++;
         }
     }
-    ships[ship_counter].health = cell_counter;
+    ships[ship_counter].max_health = cell_counter;
+    ships[ship_counter].current_health = cell_counter;
+    start_y = ships[ship_counter].coords[0][0];
+    start_x = ships[ship_counter].coords[0][1];
+    stop_y = ships[ship_counter].coords[ships[ship_counter].max_health - 1][0];
+    stop_x = ships[ship_counter].coords[ships[ship_counter].max_health - 1][1];
+    int around_coords_counter = 0;
+    for (int i = start_y - add_y; i != stop_y + 2 * add_y; i = i + add_y) {
+        for (int j = start_x - add_x; j != stop_x + 2 * add_x; j = j + add_x) {
+            if (area[i][j] != 2)
+            {
+                ships[ship_counter].around_coords[around_coords_counter][0] = i;
+                ships[ship_counter].around_coords[around_coords_counter][1] = j;
+                printf("add to around coords: %d,%d\n", i, j);
+                around_coords_counter = around_coords_counter + 1;
+            }
+        }
+
+    }
+    ships[ship_counter].around_size = around_coords_counter;
 }
 
 void generate_ship(int area[12][12], int deck_count) {
@@ -166,7 +212,7 @@ void generate_ship(int area[12][12], int deck_count) {
         if (1 <= stop_x && stop_x <= 10 && 1 <= stop_y && stop_y <= 10)
             if (check_cells(area, start_x, start_y, stop_x, stop_y, arr, 0) == 0) {
                 check_cells(area, start_x, start_y, stop_x, stop_y, arr, 1);
-                create_ship(start_x, start_y, stop_x, stop_y, arr, ship_counter);
+                create_ship(area, start_x, start_y, stop_x, stop_y, arr, ship_counter);
                 ship_counter = ship_counter + 1;
                 break;
             }
