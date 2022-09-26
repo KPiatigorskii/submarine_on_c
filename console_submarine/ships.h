@@ -3,6 +3,17 @@
 #include<time.h>
 #include <string.h>
 
+int ship_counter = 0;
+
+struct Ship
+{
+    int coords[4][2];
+    int id;
+    int health;
+};
+
+struct Ship ships[10];
+
 int* get_coords(int x, int y, int deck_count, int direction) {
     int arr[2];
     switch (direction) {
@@ -104,6 +115,23 @@ int check_cells(int area[12][12], int start_x, int start_y, int stop_x, int stop
     return 0;
 }
 
+void create_ship(int start_x, int start_y, int stop_x, int stop_y, int adders[2], int ship_counter)
+{
+    int add_x = adders[0];
+    int add_y = adders[1];
+    int cell_counter = 0;
+    ships[ship_counter].id = ship_counter;
+    for (int i = start_y; i != stop_y + add_y; i = i + add_y) {
+        for (int j = start_x; j != stop_x + add_x; j = j + add_x) {
+            
+            ships[ship_counter].coords[cell_counter][0] = i;
+            ships[ship_counter].coords[cell_counter][1] = j;
+            cell_counter++;
+        }
+    }
+    ships[ship_counter].health = cell_counter;
+}
+
 void generate_ship(int area[12][12], int deck_count) {
     int i, n;
     time_t t;
@@ -112,6 +140,7 @@ void generate_ship(int area[12][12], int deck_count) {
     int start_x;
     int start_y;
     int counter = 0;
+
     while (1) {
         counter++;
         while (1) {
@@ -122,7 +151,6 @@ void generate_ship(int area[12][12], int deck_count) {
         }
 
         int direction = rand() % 3;
-        //int direction = 0;
 
         int* adders_ptr;
         int* second_coords;
@@ -138,6 +166,8 @@ void generate_ship(int area[12][12], int deck_count) {
         if (1 <= stop_x && stop_x <= 10 && 1 <= stop_y && stop_y <= 10)
             if (check_cells(area, start_x, start_y, stop_x, stop_y, arr, 0) == 0) {
                 check_cells(area, start_x, start_y, stop_x, stop_y, arr, 1);
+                create_ship(start_x, start_y, stop_x, stop_y, arr, ship_counter);
+                ship_counter = ship_counter + 1;
                 break;
             }
         if (counter > 10)
