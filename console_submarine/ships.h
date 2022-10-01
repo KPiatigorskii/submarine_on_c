@@ -3,86 +3,186 @@
 #include<time.h>
 #include <string.h>
 
-int ship_counter = 0;
+#define MAX_CELLS_IN_AREA 10
+#define MIN_CELLS_IN_AREA 1
+#define SHIPS_COUNT 10
+#define MAX_DECK_IN_SHIP 4
 
-struct Ship
+enum ship_directions { UP = 0, RIGHT = 1, DOWN = 2, LEFT = 3 };
+struct ship
 {
     int coords[4][2];
     int around_coords[18][2];
+    int is_valid; // if not zero then true
     int id;
     int max_health;
     int current_health;
     int around_size;
+    int deck_count;
 };
 
-struct Ship ships[10];
+struct ship ships[10];
 
-void decrease_health(int x, int y)
+void print_area_0(int area[12][12])
 {
-    for (int i = 0; i < 10; i++)
+    for (int i = 1; i < 11; i++)
     {
-        for (int j = 0; j < 5; j++)
+        for (int j = 1; j < 11; j++)
         {
-            if (ships[i].coords[j][0] == x && ships[i].coords[j][1] == y)
-                ships[i].current_health = ships[i].current_health - 1;
+            printf("%d ", area[i][j]);
         }
+        printf("\n");
     }
+    printf("\n");
 }
 
-int check_health()
+void print_ship(struct ship* new_ship)
 {
-    for (int i = 0; i < 10; i++)
+    printf("====================\n");
+        printf("cells:\n");
+    for (int count = 0; count < new_ship->deck_count; count++)
     {
-        if (ships[i].current_health == 0)
-        {
-            return i;
+        printf("{x=%d, y=%d} ", new_ship->coords[count][0], new_ship->coords[count][1]);
+    }
+    printf("\n");
+    printf("around cells:\n");
+    for (int i = 0; i < new_ship->deck_count * 2 + 6; i++)
+    {
+        printf("{x=%d, y=%d} ", new_ship->coords[i][0], new_ship->coords[i][1]);
+    }
+    printf("\n====================\n");
+}
+
+int check_cell_borders(int area[12][12], int x, int y)
+{
+    if (area[y][x] > 10 ||
+        area[y][x] > 10 ||
+        area[y][x] < 1 ||
+        area[y][x] < 1)
+        return 0;
+    return 1;
+}
+
+int check_borders(struct ship* new_ship)
+{
+    for (int count = 0; count < new_ship->deck_count; count++)
+    {
+        if (new_ship->coords[count][0] > 10 || new_ship->coords[count][1] > 10 || new_ship->coords[count][1] < 1 || new_ship->coords[count][1] < 1)
+            return 0;
+    }
+    return 1;
+}
+
+int cell_in_ship(struct ship *new_ship,int i,int j)
+{
+    for (int count = 0; count < new_ship->deck_count; count++)
+    {
+        if (new_ship->coords[count][0] == j && new_ship->coords[count][1] == i)
+            return 1;
+    }
+    return 0;
+}
+
+void fill_area(struct ship *new_ship,int area[12][12])
+{
+    for (int i = 0; i < new_ship->deck_count; i++)
+    {
+        area[new_ship->coords[i][1]][new_ship->coords[i][0]] = 2;
+    }
+    for (int i = 0; i < new_ship->deck_count*2+6; i++)
+    {
+        area[new_ship->around_coords[i][1]][new_ship->around_coords[i][0]] = 1;
+    }
+
+}
+
+int set_around_coords_for_ship(struct ship *new_ship, int multipliers[2], int area[12][12])
+{
+    int start_x = new_ship->coords[0][0];
+    int start_y = new_ship->coords[0][1];
+    int stop_x = new_ship->coords[new_ship->deck_count - 1][0];
+    int stop_y = new_ship->coords[new_ship->deck_count - 1][1];
+    int add_x = multipliers[0];
+    int add_y = multipliers[1];
+    int around_coords_counter = 0;
+
+    for (int i = start_y - add_y; i != stop_y + 2 * add_y; i = i + add_y) {
+        for (int j = start_x - add_x; j != stop_x + 2 * add_x; j = j + add_x) {
+            if (area[i][j] != 2)
+            {
+                if (!cell_in_ship(new_ship, i, j))
+                {
+                    new_ship->around_coords[around_coords_counter][0] = j;
+                    new_ship->around_coords[around_coords_counter][1] = i;
+                    //printf("add to around coords: %d,%d\n", i, j);
+                    around_coords_counter = around_coords_counter + 1;
+                }
+            }
+            else {
+                new_ship->is_valid = 0;
+                return 0;
+            }
         }
+
     }
-    return -1;
+    return 1;
 }
 
-int* get_coords(int x, int y, int deck_count, int direction) {
-    int arr[2];
-    switch (direction) {
-    case 0:
-        arr[0] = x;
-        arr[1] = y - deck_count + 1;
-        break;
-    case 1:
-        arr[0] = x + deck_count - 1;
-        arr[1] = y;
-        break;
-    case 2:
-        arr[0] = x;
-        arr[1] = y + deck_count - 1;
-        break;
-    case 3:
-        arr[0] = x - deck_count + 1;
-        arr[1] = y;
-        break;
-    default:
-        break;
-    }
-    return arr;
+int set_all_coords_for_ship(int start_x, int start_y, int *multipliers, enum ship_directions direction, struct ship *new_ship, int area[12][12])
+{
+    for (int i = 0; i < new_ship->deck_count; i++)
+    {
+        switch (direction) {
+        case UP:
+            new_ship->coords[i][1] = start_y - i; // y
+            new_ship->coords[i][0] = start_x; // x
+            break;
+        case RIGHT:
+            new_ship->coords[i][1] = start_y;
+            new_ship->coords[i][0] = start_x + i;
+            break;
+        case DOWN:
+            new_ship->coords[i][1] = start_y + i;
+            new_ship->coords[i][0] = start_x;
+            break;
+        case LEFT:
+            new_ship->coords[i][1] = start_y;
+            new_ship->coords[i][0] = start_x - i;
+            break;
+        default:
+            break;
+        }
+        if (new_ship->coords[i][1] > 10 ||
+            new_ship->coords[i][0] > 10 ||
+            new_ship->coords[i][1] < 1 ||
+            new_ship->coords[i][0] < 1 ||
+            area[new_ship->coords[i][1]][new_ship->coords[i][0]] == 2)
+        {
+            new_ship->is_valid = 0;
+            return 0;
+        }
 
+    }
+    return 1;
 }
 
-int* get_adders(int direction) {
-    int dir_arr[2];
+int *get_multipliers(enum ship_directions direction)
+{
+    int *dir_arr = malloc(2);
     switch (direction) {
-    case 0:
+    case UP:
         dir_arr[0] = 1;
         dir_arr[1] = -1;
         break;
-    case 1:
+    case RIGHT:
         dir_arr[0] = 1;
         dir_arr[1] = 1;
         break;
-    case 2:
+    case DOWN:
         dir_arr[0] = 1;
         dir_arr[1] = 1;
         break;
-    case 3:
+    case LEFT:
         dir_arr[0] = -1;
         dir_arr[1] = 1;
         break;
@@ -95,131 +195,98 @@ int* get_adders(int direction) {
     return dir_arr;
 }
 
-void print_area_0(int area[12][12]) {
-    for (int i = 1; i < 11; i++)
-    {
-        for (int j = 1; j < 11; j++)
-        {
-            printf("%d ", area[i][j]);
-        }
-        printf("\n");
-    }
-    printf("\n");
+enum ship_directions get_random_direction()
+{
+    enum ship_directions direction = (rand() % 3);
+    return direction;
 }
 
-int check_cells(int area[12][12], int start_x, int start_y, int stop_x, int stop_y, int adders[2], int flag) {
-    int add_x = adders[0];
-    int add_y = adders[1];
-    printf("x_adder in check: %d\n", add_x);
-    printf("y_adder in check: %d\n", add_y);
-    printf("y: from %d to %d\n", (start_y - add_y), (stop_y + 1 * add_y));
-    printf("x: from %d to %d\n", (start_x - add_x), (stop_x + 1 * add_x));
-    for (int i = start_y - add_y; i != stop_y + 2 * add_y; i = i + add_y) {
-        for (int j = start_x - add_x; j != stop_x + 2 * add_x; j = j + add_x) {
-            printf("check cell {%d, %d} \n", i, j);
-            if (j >= 1 && j <= 10 && i >= 1 && i <= 10) {
-                printf("coordinates correct\n");
-                if (area[i][j] == 2 && flag == 0) {
-                    printf("detect 2 in area\n");
-                    return 1;
-                }
-                if (flag == 1)
-                    area[i][j] = 1;
+int is_neighbors_free(int area[12][12], int start_x, int start_y) {
+    for (int i = start_y - 1; i < start_y + 2; i++)
+    {
+        for (int j = start_x - 1; j < start_x + 2; j++) 
+        {
+            //printf("check cell x = %d, y = %d \n", j,i);
+            if (area[i][j] == 2) {
+                //printf("BUSTED\n");
+                return 0;
             }
         }
     }
+    return 1;
+}
 
-    for (int i = start_y; i != stop_y + add_y; i = i + add_y) {
-        for (int j = start_x; j != stop_x + add_x; j = j + add_x) {
-            if (flag == 0) {
-                if (i < 1 || j < 1 || i > 10 || j > 10)
-                    return 1;
-            }
-            else
-                area[i][j] = 2;
+int *get_free_cell(int area[12][12])
+{
+    int *arr = malloc(2);
+    int busy_cell_flag = 0;
+    while (1) {
+        arr[0] = rand() % 9 + 1;
+        arr[1] = rand() % 9 + 1;
+        //printf("Suggected cell: %d %d\n", arr[0], arr[1]);
+        return arr;
+    }
+}
+
+int check_all_cell_is_valid(struct ship *new_ship, int area[12][12])
+{
+    for (int i = 0; i < new_ship->deck_count; i++)
+    {
+        if (is_neighbors_free(area, new_ship->coords[i][0], 
+            new_ship->coords[i][1]) &&
+            new_ship->coords[i][1] < 11 &&
+            new_ship->coords[i][0] < 11 &&
+            new_ship->coords[i][1] > 0 &&
+            new_ship->coords[i][0] > 0)
+        {
+            return 1;
         }
     }
     return 0;
 }
 
-void create_ship(int area[12][12], int start_x, int start_y, int stop_x, int stop_y, int adders[2], int ship_counter)
+struct ship generate_ship(int area[12][12], int deck_count)
 {
-    int add_x = adders[0];
-    int add_y = adders[1];
-    int cell_counter = 0;
-    ships[ship_counter].id = ship_counter;
-    for (int i = start_y; i != stop_y + add_y; i = i + add_y) {
-        for (int j = start_x; j != stop_x + add_x; j = j + add_x) {
+    struct ship new_ship;
+    int start_x, start_y;
+    int stop_x, stop_y;
+    enum ship_directions direction;
+    int* start_coordinates;
+    int *multipliers;
+    int *stop_coordinates;
+    int *ship_coordinates;
 
-            ships[ship_counter].coords[cell_counter][0] = i;
-            ships[ship_counter].coords[cell_counter][1] = j;
-            cell_counter++;
-        }
-    }
-    ships[ship_counter].max_health = cell_counter;
-    ships[ship_counter].current_health = cell_counter;
-    start_y = ships[ship_counter].coords[0][0];
-    start_x = ships[ship_counter].coords[0][1];
-    stop_y = ships[ship_counter].coords[ships[ship_counter].max_health - 1][0];
-    stop_x = ships[ship_counter].coords[ships[ship_counter].max_health - 1][1];
-    int around_coords_counter = 0;
-    for (int i = start_y - add_y; i != stop_y + 2 * add_y; i = i + add_y) {
-        for (int j = start_x - add_x; j != stop_x + 2 * add_x; j = j + add_x) {
-            if (area[i][j] != 2)
-            {
-                ships[ship_counter].around_coords[around_coords_counter][0] = i;
-                ships[ship_counter].around_coords[around_coords_counter][1] = j;
-                printf("add to around coords: %d,%d\n", i, j);
-                around_coords_counter = around_coords_counter + 1;
-            }
-        }
+    new_ship.deck_count = deck_count;
 
-    }
-    ships[ship_counter].around_size = around_coords_counter;
-}
-
-void generate_ship(int area[12][12], int deck_count) {
-    int i, n;
     time_t t;
-
     srand((unsigned)time(&t));
-    int start_x;
-    int start_y;
-    int counter = 0;
 
-    while (1) {
-        counter++;
-        while (1) {
-            start_x = rand() % 9 + 1;
-            start_y = rand() % 9 + 1;
-            if (area[start_y][start_x] == 0)
-                break;
-        }
-
-        int direction = rand() % 3;
-
-        int* adders_ptr;
-        int* second_coords;
-        adders_ptr = get_adders(direction);
-        int arr[2];
-        arr[0] = *(adders_ptr);
-        arr[1] = *(adders_ptr + 1);
-        second_coords = get_coords(start_x, start_y, deck_count, direction);
-        int stop_x = *(second_coords);
-        int stop_y = *(second_coords + 1);
-        printf("stop_x: %d\n", stop_x);
-        printf("stop_y: %d\n", stop_y);
-        if (1 <= stop_x && stop_x <= 10 && 1 <= stop_y && stop_y <= 10)
-            if (check_cells(area, start_x, start_y, stop_x, stop_y, arr, 0) == 0) {
-                check_cells(area, start_x, start_y, stop_x, stop_y, arr, 1);
-                create_ship(area, start_x, start_y, stop_x, stop_y, arr, ship_counter);
-                ship_counter = ship_counter + 1;
-                break;
-            }
-        if (counter > 10)
+    while (1)
+    {
+        new_ship.is_valid = 1;
+        start_coordinates = get_free_cell(area); // find free cell
+        direction = get_random_direction();
+        multipliers = get_multipliers(direction); // first x, second y
+        start_x = start_coordinates[0];
+        start_y = start_coordinates[1];
+        //if (!is_neighbors_free(area, start_x, start_y))
+        //    continue;
+        printf("direction is %d\n", direction);
+        if (!set_all_coords_for_ship(start_x, start_y, multipliers, direction, &new_ship, area))
+            continue;
+        if (!check_borders(&new_ship))
+            continue;
+        if (!check_all_cell_is_valid(&new_ship, area))
+            continue;
+        if (!set_around_coords_for_ship(&new_ship, multipliers, area))
+            continue;
+        print_ship(&new_ship);
+        if (new_ship.is_valid)
+        {
+            fill_area(&new_ship, area);
+            //print_area_0(area);
             break;
+        }
+ 
     }
-    //printf("%d \n", start_x);
-    //printf("%d \n", start_y);
-    //print_area_0(area);
 }

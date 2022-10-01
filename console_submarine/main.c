@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 
+
 void generate_ships() {
     int area[12][12] = { 0 };
     generate_ship(area, 4);
@@ -39,11 +40,15 @@ void generate_ships() {
     for (int i = 0; i < 10; i++)
     {
         printf("ship id:%d\n", ships[i].id);
-        printf("ship health:%d\n", ships[i].max_health);
-        printf("ship 1st cell: %d,%d\n", ships[i].coords[0][0], ships[i].coords[0][1]);
-        printf("ship 2st cell: %d,%d\n", ships[i].coords[1][0], ships[i].coords[1][1]);
-        printf("ship 3st cell: %d,%d\n", ships[i].coords[2][0], ships[i].coords[2][1]);
-        printf("ship 4st cell: %d,%d\n", ships[i].coords[3][0], ships[i].coords[3][1]);
+        for (int j = 0; j < ships[i].max_health; j++) 
+        {
+            printf("ship cell: %d,%d\n", ships[i].coords[j][0], ships[i].coords[j][1]);
+        }
+        for (int j = 0; j < ships[i].around_size; j++)
+        {
+            printf("ship around cell: %d,%d\n", ships[i].around_coords[j][0],
+                ships[i].around_coords[j][1]);
+        }
         printf("==================================\n");
     }
 }
